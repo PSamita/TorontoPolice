@@ -1,0 +1,176 @@
+---
+title: "The COVID-19 Pandemic Might Be One of Potential Factors that Affect the Toronto Police Service Performance"
+subtitle: "Exploration of Toronto Police Annual Report From 2014 to 2020"
+author: 
+  - Samita Prabhasavat
+thanks: "Code and data are available at: https://github.com/PSamita/TorontoPolice.git"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+abstract: "This report uses the data collected and released by Toronto Police Service Public Safety Data Portal through Open Data Toronto. The Toronto Police Service performance and the effcts of the COVID-19 pandemic are discussed in this report. The data shows that the COVID-19 pandemic might have impact on crime rates which leads to change in performance of the Toronto Police Service. While the performance rate of the Toronto Police Service seems to be improving, it is questionable to conclude that the Toronto Police Service has improved their working efficiency without considering other factors."
+output:
+  bookdown::pdf_document2
+toc: FALSE
+bibliography: references.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse) #for working with data and making figures
+library(here) #for accessing data files
+library(janitor) #for cleaning variable names
+library(dplyr) #for joining data frames
+library(bookdown) #for cross referencing graphs and figures
+library(ggplot2) #for making graphs
+library(knitr) #for making tables
+```
+
+# Introduction
+
+The Toronto Police Service has launched their Annual Statistical Report (ASR) in response to recommendations made by members of the Toronto Police Services Board to improve the Service's transparency and to promote public awareness in Toronto [@Police]. The Reported Crime data set contains all crimes reported to Toronto Police Service from 2014 to 2020 by reported year and category of crime aggregated by division. 
+
+This report will first, look at the cleared case rates compared with the number of counted cases between 2014 to 2020 in Section \@ref(counted-vs-cleared-cases) to see the trend of the Toronto Police Service performance. Second, it will look into the trend of the number of reported cases in Section \@ref(number-of-reported-cases). Third, it will look into the trend of the number of cleared cases in Section \@ref(number-of-cleared-cases). Last, it will conclude the insights found from exploring this data set in Section \@ref(conclusion).
+
+
+# Data
+## Overview of the Data
+In this report, data analysis is done using R statistical programming language [@citeR]. The data is imported directly using the opendatatoronto package [@citeopendatatoronto]. The here package is used to access file from another folder in the same R Project [@citehere]. The janitor package is used to clean the names of the columns [@citejanitor]. The tidyverse package and dplyr package are used for data manipulation [@citetidyverse] [@citedplyr]. The knitr package is used to create a table from data frame [@citeknitr]. The ggplot2 package is used to create graphs [@citeggplot2]. The bookdown package is used to cross reference graphs and figures [@citebookdown].
+
+The data used in this report is the Police Annual Statistical Report created by the Analytics and Innovation Unit under the Toronto Police Service [@Police]. The data is freely shared through the Open Data Toronto Portal and can be downloaded directly or save as csv file [@Open]. This data set included all crimes reported to the Toronto Police Services; including cases happened outside of Toronto, cases that has no verified location, and cases that may have been unfounded after investigation. The data was collected by combining all reports from every police station under the Toronto Police Service. All personal information of the victims was omitted from generating open data set to protect the privacy of the victims. However, the division and the category of crimes were kept in this open data set. Then, the number of cases was counted and categorized into category and sub-type of the crime.
+
+Ethically, the most concerning point about this data set is probably the privacy and security of the data. Normally when a police officer create a document to record a crime, the document will be recorded in detail to help with the investigation and other policing process. That being said, all information including personal information of the victim are also recorded in the document which makes it risky to work with the data set while maintaining the privacy and security of the data.
+
+Statistically, it is questionable to analyze the performance of the Toronto Police Service based on only this data set. Even though the data set is claimed to record all reported cases, according to the Police and Fraud Investigation report, there are many cases that were reported to the police station but were not recorded in the system. For instance, sometimes people call the police to report a crime, but the police said this is not a crime and end up do not report it or conduct further investigation. Based on the study, online fraud is the most crime category that might be ignored by the police officer because it is difficult to track. Also, crimes like sexual assualt and domestic violence are less likely to be reported to the police [@study]. That being said, having more data on these aspects that might have been left out will improve the accuracy and preciseness of the analysis. 
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE}
+#### Basic Cleaning ####
+# Import data from csv file
+police_report <- readr::read_csv(here::here("inputs/data/police_report_data.csv"))
+
+# Modify variable names
+cleaned_police_report <- clean_names(police_report)
+```
+
+```{r, echo = FALSE}
+#### Create Data Frame Containing Counted Cases ####
+# Select interested columns
+counted_case <- cleaned_police_report |>
+  select(reported_year, category, count)
+
+# Merge rows containing same year and category
+counted_case <- aggregate(x = counted_case$count,
+                          by = list(counted_case$reported_year, counted_case$category),
+                          FUN = sum)
+
+# Change column names
+counted_case <- counted_case |>
+  rename(reported_year = Group.1, category = Group.2, counted_case = x)
+
+# Save as csv file
+write_csv(
+  x = counted_case,
+  file = "counted_case.csv"
+)
+```
+
+```{r, echo = FALSE}
+#### Create Data Frame Containing Cleared Cases ####
+cleared_case <- cleaned_police_report |>
+  select(reported_year, category, count_cleared)
+
+# Merge rows containing same year and category
+cleared_case <- aggregate(x = cleared_case$count_cleared,
+                          by = list(cleared_case$reported_year, cleared_case$category),
+                          FUN = sum)
+# Change column names
+cleared_case <- cleared_case |>
+  rename(reported_year = Group.1, category = Group.2, cleared_case = x)
+
+# Save as csv file
+write_csv(
+  x = cleared_case,
+  file = "cleared_case.csv"
+)
+```
+
+```{r, echo = FALSE}
+#### Create Data Frame Containing Both Counted and Cleared Cases ####
+# Merge 2 data frames
+counted_cleared_case <- merge(counted_case, cleared_case, by = c("reported_year", "category"))
+
+#Save as csv file
+write_csv(
+  x = counted_cleared_case,
+  file = "counted_cleared_case.csv"
+)
+```
+
+## Counted VS Cleared Cases
+This report will focus on comparing the number of reported cases compared with the number of cases the Toronto Police Service can clear to see how well the Toronto Police Service work in clearing the cases.
+
+According to Table \@ref(tab:ctable), there are six crime categories per year where each category shows the number of counted and cleared cases. It is seen that the number of counted cases for every row is more than the number of cleared cases. This indicates that there are cases that have not yet been solved for some reasons.
+
+```{r ctable, echo = FALSE, warning = FALSE}
+#### Create Table ####
+knitr::kable(counted_cleared_case, "pipe", col.names = c("Reported Year", "Category", "Counted Case", "Cleared Case"), align = c("l", "l", "l", "l"), caption = "Number of Counted and Cleared Cases by Reported Year and Category")
+```
+
+
+The bar graph in Figure \@ref(fig:pgraph) was created to show the trend of the percentages of the number of cleared cases compared to the number of reported cases. Overall, it can be seen that the percentages show positive trend which means the ratio of cases cleared compared to cases reported are increasing over the years. However, the percentage from 2019 to 2020 seems to increase with a little higher rate than the previous years.
+
+```{r pgraph, echo = FALSE, warning = FALSE, fig.cap="Percentage Change of Cleared Cases between 2014 to 2020 by Category", echo = FALSE, fig.width=8, fig.height=4}
+#### Create a Graph Showing the Percentage Change of Cleared Cases from 2014 to 2020 ####
+percentage_change_data <- counted_cleared_case |>
+  mutate(change = counted_case - cleared_case,
+         change_percentage = (change/counted_case)*100)
+
+percentage_graph <- ggplot(percentage_change_data, aes(x = reported_year, y = change_percentage, fill = category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_light() +
+  labs(x = "Year",
+       y = "Percentage Change",
+       color = "Category")
+
+percentage_graph
+```
+
+
+## Number of Reported Cases
+In order to investigate more, the bar graph in Figure \@ref(fig:rgraph) was created. This graph shows that the number of reported cases in Toronto dropped significantly which might be because of the COVID-19 pandemic. According to the City of Toronto, the first COVID-19 case in Toronto was confirmed on January 22, 2020 [@confirmedcase]. After that, the number of COVID-19 cases in Toronto has increased which leads to lockdown. According to the study, crimes against property has decreased during the pandemic while crime against the peron especially domestic violence has increased significantly during the lockdown. However, as mentioned in Section \@ref(overview-of-the-data), domestic violence are less likely to be reported which is reasonable that the number shown on the graph does not show much difference from previous years. On the other hand, the number of reported crimes against property dropped significantly.
+
+```{r rgraph, echo = FALSE, warning = FALSE, fig.cap="Number of Counted Cases between 2014 to 2020 by Category", echo = FALSE, fig.width=8, fig.height=4}
+#### Create a Graph Comparing Number of Counted Cases from 2014 to 2020 by Category ####
+counted_cat_year <- ggplot(counted_case, aes(x = reported_year, y = counted_case, fill = category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_light() + 
+   labs(x = "Year",
+       y = "Counted Case",
+       color = "Category")
+
+counted_cat_year
+```
+
+## Number of Cleared Cases
+To investigate further, the bar graph in Figure \@ref(fig:cgraph) was created. It can be seen that the graph drops significantly during that period which supports the assumption that the COVID-19 pandemic might be one of the potential factors that has affected the cleared cases ratio. It is somewhat reasonable that both the number of reported cases and the number of cleared cases dropped but the percentage of the cleared cases increased as the number of overall reported cases decreased while the Toronto Police Service have the same amount of resources to clear the cases.
+
+```{r, cgraph, echo = FALSE, warning = FALSE, fig.cap="Number of Counted Cases between 2014 to 2020 by Category", echo = FALSE, fig.width=8, fig.height=4}
+#### Create a Graph Comparing Number of Cleared Cases from 2014 to 2020 by Category ####
+cleared_cat_year <- ggplot(cleared_case, aes(x = reported_year, y = cleared_case, fill = category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_light() +
+   labs(x = "Year",
+       y = "Cleared Case",
+       color = "Category")
+
+cleared_cat_year
+```
+
+# Conclusion
+In conclusion, it is true that the percentage of cases cleared has increased from 2014 to 2020 which might be because of several reasons. One of the potential reasons might be because of the COVID-19 pandemic as the percentage increased significantly from 2019 to 2020. One reason that can support this assumption is that there are less crimes reported in 2020 while the Toronto Police Service have the same amount of resource that can be used to clear the cases. However, with only this data set, it is inappropriate to draw a conclusion whether the performance of the Toronto Police Service is improving or not because there are many more factors that need to be considered. For example, impact of the COVID-19 pandemic on crime, impact of other factors or events on crime, the amount of resources the Police Toronto Service have form 2014 to 2020, and the difficulties to clear the cases.
+
+
+\newpage
+
+
+# References
+
+
